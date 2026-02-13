@@ -1,0 +1,5 @@
+{
+  "name": "Streamer Vertical Roulette",
+  "description": "A broadcast-quality vertical roulette/slot machine for streamers with smooth physics-based stopping and custom lists.",
+  "requestFramePermissions": []
+}
