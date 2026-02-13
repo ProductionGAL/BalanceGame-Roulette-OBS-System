@@ -36,8 +36,9 @@ const TopicPage: React.FC = () => {
             {/* Spinning State */}
             {(gameState === GameState.SPINNING || gameState === GameState.STOPPING) && (
                 <div className="flex flex-col items-center gap-6 animate-pulse">
-                    <div className="text-6xl">🎰</div>
-                    <div className="text-white/60 text-3xl font-black tracking-[0.3em] uppercase">
+                    <div style={{ fontSize: 'clamp(3rem, 8vw, 6rem)' }}>🎰</div>
+                    <div className="text-white/60 font-black tracking-[0.3em] uppercase"
+                        style={{ fontSize: 'clamp(1.5rem, 4vw, 3rem)' }}>
                         주제 선정 중...
                     </div>
                 </div>
@@ -45,44 +46,67 @@ const TopicPage: React.FC = () => {
 
             {/* Winner Display */}
             {gameState === GameState.WON && winnerItem && (
-                <div className="flex flex-col items-center w-full px-12 animate-fadeIn">
-                    {/* Topic Number / Badge */}
-                    <div className="mb-8 px-6 py-2 border-2 border-white/20 text-white/40 text-sm font-bold tracking-[0.2em] uppercase">
+                <div className="flex flex-col items-center w-full h-full p-[3vh_3vw] animate-fadeIn">
+                    {/* Topic Badge */}
+                    <div className="mb-[3vh] px-6 py-2 border-2 border-white/20 text-white/40 font-bold tracking-[0.2em] uppercase"
+                        style={{ fontSize: 'clamp(0.7rem, 1.5vw, 1rem)' }}>
                         선정된 주제
                     </div>
 
-                    {/* Main Topic Text */}
-                    <div className="flex items-center justify-center gap-8 w-full max-w-[1400px]">
-                        {/* Option A */}
-                        <div className="flex-1 text-right">
-                            <span className="text-white font-black leading-tight break-keep"
-                                style={{ fontSize: getOptimalFontSize(leftText.length) }}>
-                                {leftText}
-                            </span>
-                        </div>
+                    {/* Main Topic Area — fills remaining space */}
+                    <div className="flex-1 flex items-center justify-center w-full"
+                        style={{ minHeight: 0 }}>
+                        <div className="flex items-center justify-center w-full h-full"
+                            style={{ gap: 'clamp(1rem, 3vw, 3rem)' }}>
 
-                        {/* VS Badge */}
-                        <div className="shrink-0 w-24 h-24 bg-yellow-400 flex items-center justify-center">
-                            <span className="text-black text-3xl font-black">VS</span>
-                        </div>
+                            {/* Option A */}
+                            <div className="flex-1 flex items-center justify-end h-full overflow-hidden">
+                                <p className="text-white font-black leading-[1.15] text-right break-keep m-0"
+                                    style={{
+                                        fontSize: 'clamp(1.5rem, 6vw, 7rem)',
+                                        wordBreak: 'keep-all',
+                                        overflowWrap: 'break-word',
+                                    }}>
+                                    {leftText}
+                                </p>
+                            </div>
 
-                        {/* Option B */}
-                        <div className="flex-1 text-left">
-                            <span className="text-white font-black leading-tight break-keep"
-                                style={{ fontSize: getOptimalFontSize(rightText.length) }}>
-                                {rightText}
-                            </span>
+                            {/* VS Badge */}
+                            <div className="shrink-0 bg-yellow-400 flex items-center justify-center"
+                                style={{
+                                    width: 'clamp(3rem, 7vw, 7rem)',
+                                    height: 'clamp(3rem, 7vw, 7rem)',
+                                }}>
+                                <span className="text-black font-black"
+                                    style={{ fontSize: 'clamp(1rem, 2.5vw, 2.5rem)' }}>VS</span>
+                            </div>
+
+                            {/* Option B */}
+                            <div className="flex-1 flex items-center justify-start h-full overflow-hidden">
+                                <p className="text-white font-black leading-[1.15] text-left break-keep m-0"
+                                    style={{
+                                        fontSize: 'clamp(1.5rem, 6vw, 7rem)',
+                                        wordBreak: 'keep-all',
+                                        overflowWrap: 'break-word',
+                                    }}>
+                                    {rightText}
+                                </p>
+                            </div>
                         </div>
                     </div>
 
                     {/* Team Labels */}
-                    <div className="flex items-center gap-8 w-full max-w-[1400px] mt-10">
+                    <div className="flex items-center w-full mt-[2vh]"
+                        style={{ gap: 'clamp(1rem, 3vw, 3rem)' }}>
                         <div className="flex-1 text-right">
-                            <span className="text-teal-400 text-xl font-black tracking-wider">A</span>
+                            <span className="text-teal-400 font-black tracking-wider"
+                                style={{ fontSize: 'clamp(1rem, 2vw, 1.5rem)' }}>A</span>
                         </div>
-                        <div className="w-24" />
+                        <div className="shrink-0"
+                            style={{ width: 'clamp(3rem, 7vw, 7rem)' }} />
                         <div className="flex-1 text-left">
-                            <span className="text-orange-400 text-xl font-black tracking-wider">B</span>
+                            <span className="text-orange-400 font-black tracking-wider"
+                                style={{ fontSize: 'clamp(1rem, 2vw, 1.5rem)' }}>B</span>
                         </div>
                     </div>
                 </div>
@@ -91,7 +115,8 @@ const TopicPage: React.FC = () => {
             {/* Idle State */}
             {gameState === GameState.IDLE && (
                 <div className="flex flex-col items-center gap-4">
-                    <div className="text-white/20 text-2xl font-bold tracking-[0.2em]">
+                    <div className="text-white/20 font-bold tracking-[0.2em]"
+                        style={{ fontSize: 'clamp(1rem, 3vw, 2rem)' }}>
                         {connected ? '대기 중' : '컨트롤 페이지 연결 대기중...'}
                     </div>
                 </div>
@@ -105,17 +130,10 @@ const TopicPage: React.FC = () => {
                 .animate-fadeIn {
                     animation: fadeIn 0.5s ease-out forwards;
                 }
-            `}</style>
+            `}
+            </style>
         </div>
     );
 };
-
-function getOptimalFontSize(length: number): string {
-    if (length <= 8) return '4.5rem';
-    if (length <= 12) return '3.5rem';
-    if (length <= 18) return '2.8rem';
-    if (length <= 25) return '2.2rem';
-    return '1.8rem';
-}
 
 export default TopicPage;
