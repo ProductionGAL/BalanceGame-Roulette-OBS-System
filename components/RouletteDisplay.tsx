@@ -29,6 +29,9 @@ export const RouletteDisplay: React.FC<RouletteDisplayProps> = ({
   // Audio Context Ref (Synthesis)
   const audioCtxRef = useRef<AudioContext | null>(null);
   const lastTickIndexRef = useRef<number>(-1);
+  const lastTickTimeRef = useRef<number>(0); // Time-based throttle for tick sounds
+  const snapTargetRef = useRef<number | null>(null); // Lock snap target during ease phase
+  const animationWonRef = useRef<boolean>(false); // Flag: animation set WON, skip useEffect reposition
 
   // === Refs to decouple animation loop from React re-renders ===
   // These refs hold the latest values so the animation loop can read them
@@ -153,51 +156,79 @@ export const RouletteDisplay: React.FC<RouletteDisplayProps> = ({
 
     offsetRef.current += speedRef.current;
 
-    // Wrap around logic
-    if (offsetRef.current >= totalH) {
-      offsetRef.current -= totalH;
+    // Wrap around logic — only during free-running deceleration, NOT during snap ease
+    if (snapTargetRef.current === null) {
+      if (offsetRef.current >= totalH) {
+        offsetRef.current -= totalH;
+      }
+      if (offsetRef.current < 0) {
+        offsetRef.current += totalH;
+      }
     }
 
     // Sound Logic: Calculate which item index is currently passing the center
     const currentItemIndex = Math.floor(offsetRef.current / cfg.itemHeight);
 
-    // Play sound if index changed AND it's every 4th index
-    if (currentItemIndex !== lastTickIndexRef.current && speedRef.current > 2) {
-      if (currentItemIndex % 4 === 0) {
-        playTickSound();
-      }
+    // Play sound if index changed — with time-based throttle to prevent audio overload
+    const now = performance.now();
+    const minTickInterval = 80; // ms — minimum gap between ticks
+    if (currentItemIndex !== lastTickIndexRef.current && speedRef.current > 2 && (now - lastTickTimeRef.current) > minTickInterval) {
+      playTickSound();
       lastTickIndexRef.current = currentItemIndex;
+      lastTickTimeRef.current = now;
     }
 
-    if (gs === GameState.STOPPING && speedRef.current < 0.5) {
-      const viewportCenter = (cfg.visibleItems * cfg.itemHeight) / 2;
-      const currentScrollCenter = offsetRef.current + viewportCenter;
+    // --- Smooth stopping logic ---
+    if (gs === GameState.STOPPING) {
+      // Phase 1: When speed is still noticeable, just let friction do its work (already applied above).
+      // Phase 2: When speed drops low enough, determine target snap and ease into it smoothly.
+      if (speedRef.current < 5) {
+        const viewportCenter = (cfg.visibleItems * cfg.itemHeight) / 2;
 
-      const exactIndex = (currentScrollCenter - (cfg.itemHeight / 2)) / cfg.itemHeight;
-      const snapIndex = Math.round(exactIndex);
+        // Lock the snap target on first entry — don't recalculate every frame
+        if (snapTargetRef.current === null) {
+          const currentScrollCenter = offsetRef.current + viewportCenter;
+          const exactIndex = (currentScrollCenter - (cfg.itemHeight / 2)) / cfg.itemHeight;
+          let snapIndex = Math.round(exactIndex);
 
-      const candidateItem = displayItemsRef.current[snapIndex];
+          // Clamp to valid displayItems range (0 to 3*itemCount - 1)
+          const maxIndex = displayItemsRef.current.length - 1;
+          snapIndex = Math.max(0, Math.min(snapIndex, maxIndex));
 
-      // Safety: if we'd land on an already-played item, nudge forward instead of stopping
-      if (candidateItem && candidateItem.played) {
-        speedRef.current = Math.max(speedRef.current, 2); // keep rolling
-      } else {
-        const targetOffset = (snapIndex * cfg.itemHeight) - viewportCenter + (cfg.itemHeight / 2);
+          // If it's a played item, search forward for the next unplayed one (same copy)
+          const items = displayItemsRef.current;
+          for (let i = 0; i < items.length; i++) {
+            const idx = (snapIndex + i) % items.length;
+            if (items[idx] && !items[idx].played) {
+              snapIndex = idx;
+              break;
+            }
+          }
+          snapTargetRef.current = snapIndex;
+        }
+
+        const clampedSnapIndex = snapTargetRef.current;
+        const targetOffset = (clampedSnapIndex * cfg.itemHeight) - viewportCenter + (cfg.itemHeight / 2);
         const diff = targetOffset - offsetRef.current;
 
-        if (Math.abs(diff) < 1) {
-          offsetRef.current = targetOffset;
-          speedRef.current = 0;
+        // Override friction-based movement with spring-like ease
+        speedRef.current = 0;
 
-          const actualWinner = displayItemsRef.current[snapIndex];
+        if (Math.abs(diff) < 0.5) {
+          // Close enough — snap exactly and declare winner
+          offsetRef.current = targetOffset;
+          snapTargetRef.current = null; // Reset for next round
+          animationWonRef.current = true; // Flag to prevent useEffect repositioning
+
+          const actualWinner = displayItemsRef.current[clampedSnapIndex];
           setGameStateRef.current(GameState.WON);
-          playWinSound(); // Play Fanfare here
+          playWinSound();
           onWinRef.current(actualWinner);
-          // Notify the control page of the winner
           winChannel.postMessage({ winnerId: actualWinner.id });
           return;
         } else {
-          offsetRef.current += diff * 0.1;
+          // Smooth spring-like ease: move 5% of remaining distance each frame
+          offsetRef.current += diff * 0.05;
         }
       }
     }
@@ -218,6 +249,7 @@ export const RouletteDisplay: React.FC<RouletteDisplayProps> = ({
       }
 
       speedRef.current = 0;
+      snapTargetRef.current = null; // Reset snap target for fresh calculation
       requestRef.current = requestAnimationFrame(animate);
     } else if (gameState === GameState.STOPPING) {
       // Only start a new loop if one isn't already running
@@ -248,6 +280,11 @@ export const RouletteDisplay: React.FC<RouletteDisplayProps> = ({
     };
 
     if (gameState === GameState.WON && winnerId) {
+      // Skip repositioning if the animation loop already set the final offset
+      if (animationWonRef.current) {
+        animationWonRef.current = false;
+        return;
+      }
       const winnerIndex = items.findIndex(item => item.id === winnerId);
       if (winnerIndex !== -1) {
         setPosition(winnerIndex + items.length);

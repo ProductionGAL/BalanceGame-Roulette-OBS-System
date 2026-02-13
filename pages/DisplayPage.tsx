@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { GameState, RouletteItem } from '../types';
 import { DEFAULT_CONFIG, INITIAL_ITEMS } from '../constants';
 import { RouletteDisplay } from '../components/RouletteDisplay';
@@ -23,10 +23,18 @@ const DisplayPage: React.FC = () => {
 
     useBroadcastReceiver(handleStateReceived);
 
-    // Items to display on the roulette wheel
-    const rouletteItems = React.useMemo(() =>
-        items.filter(item => !item.played || item.id === lastWinnerId),
-        [items, lastWinnerId]);
+    // Freeze rouletteItems during animation to prevent DOM shifts
+    const frozenItemsRef = useRef<RouletteItem[]>([]);
+
+    const rouletteItems = React.useMemo(() => {
+        const filtered = items.filter(item => !item.played || item.id === lastWinnerId);
+        // Only update the frozen list when NOT actively spinning/stopping
+        if (gameState === GameState.IDLE || gameState === GameState.WON) {
+            frozenItemsRef.current = filtered;
+        }
+        // Always return the frozen (stable) list during animation
+        return frozenItemsRef.current.length > 0 ? frozenItemsRef.current : filtered;
+    }, [items, lastWinnerId, gameState]);
 
     // This is a display-only callback — the actual win logic is handled by ControlPage
     const handleWin = useCallback((_item: RouletteItem) => {
